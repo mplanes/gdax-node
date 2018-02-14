@@ -1,5 +1,5 @@
-declare module "gdax" {
-    export type callback<T> = (err, response, data: T) => void;
+declare module 'gdax' {
+    export type callback<T> = (err: any, response: any, data: T) => void;
 
     export type ProductTicker = {
         trade_id: string,
@@ -8,109 +8,97 @@ declare module "gdax" {
         bid: string,
         ask: string,
         volume: string,
-        time: Date
+        time: string
     }
 
-    type LimitOrder = {
-        type: "limit";
+    interface BaseOrder {
+        type: string;
+        side: 'buy' | 'sell';
         product_id: string;
+        client_oid?: string;
+        stp?: 'dc' | 'co' | 'cn' | 'cb';
+    }
+
+    interface LimitOrder extends BaseOrder {
+        type: 'limit';
         price: string;
         size: string;
-        time_in_force?: "GTC" | "GTT" | "IOC" | "FOK";
-        cancel_after?: "min" | "hour" | "day";
-        post_only: boolean;
-    };
-
-    type MarketOrder = {
-        type: "market";
-        product_id: string;
-        size: string;
-    } |
-        {
-            type: "market";
-            product_id: string;
-            funds: string;
-        };
-
-    type StopOrder = {
-        type: "stop";
-        product_id: string;
-        size: string;
-    } |
-        {
-            type: "stop";
-            product_id: string;
-            funds: string;
-        };
-
-    export type BuyOrderParams = MarketOrder | LimitOrder | StopOrder;
-
-    export type SellOrderParams = MarketOrder | LimitOrder | StopOrder;
-
-    export type OrderResult = {
-        id: string;
-        price: number;
-        size: number;
-        product_id: string;
-        side: "buy" | "sell";
-        stp: "dc" | "co" | "cn" | "cb";
-        type: "limit" | "market" | "stop";
-        time_in_force: "GTC" | "GTT" | "IOC" | "FOK";
-        post_only: boolean;
-        created_at: string;
-        fill_fees: number;
-        filled_size: number;
-        executed_value: number;
-        status: "received" | "open" | "done";
-        settled: boolean;
+        time_in_force?: 'GTC' | 'GTT' | 'IOC' | 'FOK';
+        cancel_after?: 'min' | 'hour' | 'day';
+        post_only?: boolean;
     }
 
-    export type OrderInfo = {
+    /**
+     * Only one of `size` and `funds` are required for market and limit orders (the other can be explicitly assigned null or undefined). However,
+     * it is advisable to include both. If funds is not specified, the entire user balance is placed on hold until the order is filled which
+     * will prevent other orders from being placed in the interim. This can cause issues for HFT algorithms for example.
+     */
+    interface MarketOrder extends BaseOrder {
+        type: 'market';
+        size: string | null;
+        funds: string | null;
+    }
+
+    interface StopOrder extends BaseOrder {
+        type: 'stop';
+        size: string;
+        funds: string;
+    }
+
+    export type OrderParams = MarketOrder | LimitOrder | StopOrder;
+
+    export interface BaseOrderInfo {
         id: string;
-        price: number;
-        size: number;
+        price: string;
+        size: string;
         product_id: string;
-        side: "buy" | "sell";
-        stp: "dc" | "co" | "cn" | "cb";
+        side: 'buy' | 'sell';
+        stp: 'dc' | 'co' | 'cn' | 'cb';
+        type: 'limit' | 'market' | 'stop';
+        created_at: string;
+        post_only: boolean;
+        fill_fees: string;
+        filled_size: string;
+        status: 'received' | 'open' | 'done' | 'pending';
+        settled: boolean;
+        executed_value: string;
+    }
+
+    export interface OrderResult extends BaseOrderInfo {
+        time_in_force: 'GTC' | 'GTT' | 'IOC' | 'FOK';
+        status: 'received' | 'open' | 'done';
+    }
+
+    export interface OrderInfo extends BaseOrderInfo {
+        status: 'received' | 'open' | 'done' | 'pending';
         funds: number;
         specified_funds: number;
-        type: "market" | "limit" | "stop";
-        post_only: boolean,
-        created_at: string;
         done_at: string;
-        done_reason: string;
-        fill_fees: number;
-        filled_size: number;
-        executed_value: number;
-        status: "received" | "open" | "done" | "pending";
-        settled: boolean;
+        executed_value: string;
     }
 
     export type PageArgs = {
-        before: number;
+        before?: number;
         after?: number;
         limit?: number;
-    } |
-        {
-            before?: number;
-            after: number;
-            limit?: number;
-        } |
-        {
-            before?: number;
-            after?: number;
-            limit: number;
-        };
+    };
 
+    export type FillFilter = {
+        product_id?: string;
+    } & PageArgs;
 
+    export type OrderFilter = {
+        product_id?: string;
+        status?: string;
+    } & PageArgs;
 
     export type Account = {
         id: string,
         profile_id: string,
-        currency: "USD" | "BTC" | "LTC" | "ETH",
-        balance: number,
-        available: number,
-        hold: number
+        currency: CurrencyType,
+        balance: string,
+        available: string,
+        hold: string
     };
 
     export type CoinbaseAccount = {
@@ -118,12 +106,12 @@ declare module "gdax" {
         name: string,
         balance: number,
         currency: CurrencyType,
-        type: "wallet" | "fiat",
+        type: 'wallet' | 'fiat',
         primary: boolean,
         active: boolean
     };
 
-    export type CurrencyType = "USD" | "BTC" | "LTC" | "ETH";
+    export type CurrencyType = 'USD' | 'BTC' | 'LTC' | 'ETH' | 'B2X';
 
     export type CurrencyInfo = {
         id: CurrencyType,
@@ -131,115 +119,157 @@ declare module "gdax" {
         min_size: string
     };
 
+    export interface ProductInfo {
+        id: string;
+        base_currency: string;
+        quote_currency: string;
+        base_min_size: string;
+        base_max_size: string;
+        quote_increment: string;
+        display_name: string;
+        margin_enabled: boolean;
+    }
+
     export class PublicClient {
-        constructor(productId: string);
+        constructor(apiURI?: string);
 
-        getProducts(callback: callback<any>);
-        getProducts(): Promise<any>;
+        getProducts(callback: callback<ProductInfo[]>): void;
+        getProducts(): Promise<ProductInfo[]>;
 
-        getProductOrderBook(callback: callback<any>);
-        getProductOrderBook(): Promise<any>;
+        getProductOrderBook(productID: string, options: any, callback: callback<any>): void;
+        getProductOrderBook(productID: string, options: any): Promise<any>;
 
-        getProductTicker(callback: callback<ProductTicker>);
-        getProductTicker(): Promise<ProductTicker>;
+        getProductTicker(productID: string, callback: callback<ProductTicker>): void;
+        getProductTicker(productID: string, ): Promise<ProductTicker>;
 
-        getProductTrades(callback: callback<any>);
-        getProductTrades(): Promise<any>;
+        getProductTrades(productID: string, callback: callback<any>): void;
+        getProductTrades(productID: string, ): Promise<any>;
 
-        getProductTradeStream(callback: callback<any>);
-        getProductTradeStream(): Promise<any>;
+        getProductTradeStream(productID: string, tradesFrom: number, tradesTo: any, callback: callback<any>): void;
+        getProductTradeStream(productID: string, tradesFrom: number, tradesTo: any): Promise<any>;
 
-        getProductHistoricRates(args: any, callback: callback<any[][]>);
-        getProductHistoricRates(args: any): Promise<any[][]>;
+        getProductHistoricRates(productID: string, args: any, callback: callback<any[][]>): void;
+        getProductHistoricRates(productID: string, args: any): Promise<any[][]>;
 
-        getProduct24HrStats(callback: callback<any>);
-        getProduct24HrStats(): Promise<any>;
+        getProduct24HrStats(productID: string, callback: callback<any>): void;
+        getProduct24HrStats(productID: string): Promise<any>;
 
-        getCurrencies(callback: callback<CurrencyInfo[]>);
+        getCurrencies(callback: callback<CurrencyInfo[]>): void;
         getCurrencies(): Promise<CurrencyInfo[]>;
 
-        getTime(callback: callback<any>);
+        getTime(callback: callback<any>): void;
         getTime(): Promise<any>;
     }
 
     export class AuthenticatedClient {
-        constructor(key: string, b64secret: string, passphrase: string, apiURI: string);
+        constructor(key: string, secret: string, passphrase: string, apiURI: string);
 
-        getCoinbaseAccounts(callback: callback<CoinbaseAccount[]>)
+        getCoinbaseAccounts(callback: callback<CoinbaseAccount[]>): void
         getCoinbaseAccounts(): Promise<CoinbaseAccount[]>;
 
-        getAccounts(callback: callback<Account[]>);
+        getAccounts(callback: callback<Account[]>): void;
         getAccounts(): Promise<Account[]>;
 
-        getAccount(accountID: string, callback: callback<Account>);
+        getAccount(accountID: string, callback: callback<Account>): void;
         getAccount(accountID: string): Promise<Account>;
 
-        getAccountHistory(accountID: string, callback: callback<any>);
+        getAccountHistory(accountID: string, callback: callback<any>): void;
         getAccountHistory(accountID: string): Promise<any>;
 
-        getAccountHistory(accountID: string, pageArgs: PageArgs, callback: callback<any>)
+        getAccountHistory(accountID: string, pageArgs: PageArgs, callback: callback<any>): void;
         getAccountHistory(accountID: string, pageArgs: PageArgs): Promise<any>;
 
-        getAccountHolds(accountID: string, callback: callback<any>);
+        getAccountTransfers(accountID: string, callback: callback<any>): void;
+        getAccountTransfers(accountID: string): Promise<any>;
+
+        getAccountTransfers(accountID: string, pageArgs: PageArgs, callback: callback<any>): void
+        getAccountTransfers(accountID: string, pageArgs: PageArgs): Promise<any>;
+
+        getAccountHolds(accountID: string, callback: callback<any>): void;
         getAccountHolds(accountID: string): Promise<any>;
 
-        getAccountHolds(accountID: string, pageArgs: PageArgs, callback: callback<any>);
+        getAccountHolds(accountID: string, pageArgs: PageArgs, callback: callback<any>): void;
         getAccountHolds(accountID: string, pageArgs: PageArgs): Promise<any>;
 
-        buy(params: BuyOrderParams, callback: callback<OrderResult>);
-        buy(params: BuyOrderParams): Promise<OrderResult>;
+        buy(params: OrderParams, callback: callback<OrderResult>): void;
+        buy(params: OrderParams): Promise<OrderResult>;
 
-        sell(params: SellOrderParams, callback: callback<OrderResult>);
-        sell(params: SellOrderParams): Promise<OrderResult>;
+        sell(params: OrderParams, callback: callback<OrderResult>): void;
+        sell(params: OrderParams): Promise<OrderResult>;
 
-        cancelOrder(orderID, callback: callback<any>);
-        cancelOrder(orderID): Promise<any>;
+        placeOrder(params: OrderParams, callback: callback<OrderResult>): void;
+        placeOrder(params: OrderParams): Promise<OrderResult>;
 
-        cancelAllOrders(args: { product_id: string }, callback: callback<any>);
+        cancelOrder(orderID: any, callback: callback<any>): void;
+        cancelOrder(orderID: any): Promise<any>;
+
+        cancelAllOrders(args: { product_id: string }, callback: callback<any>): void;
         cancelAllOrders(args: { product_id: string }): Promise<any>;
 
-        getOrders(callback: callback<any>);
+        getOrders(callback: callback<any>): void;
         getOrders(): Promise<any>;
 
-        getOrders(pageArgs: PageArgs, callback: callback<any>);
-        getOrders(pageArgs: PageArgs): Promise<any>;
+        getOrders(props: OrderFilter, callback: callback<any>): void;
+        getOrders(props: OrderFilter): Promise<any>;
 
-        getOrder(orderID, callback: callback<OrderInfo>);
-        getOrder(orderID): Promise<OrderInfo>;
+        getOrder(orderID: any, callback: callback<OrderInfo>): void;
+        getOrder(orderID: any): Promise<OrderInfo>;
 
-        getFills(callback: callback<any>);
+        getFills(callback: callback<any>): void;
         getFills(): Promise<any>;
 
-        getFills(pageArgs: PageArgs, callback: callback<any>);
-        getFills(pageArgs: PageArgs): Promise<any>;
+        getFills(props: FillFilter, callback: callback<any>): void;
+        getFills(props: FillFilter): Promise<any>;
 
-        getFundings(params, callback: callback<any>);
-        getFundings(params): Promise<any>;
+        getFundings(params: any, callback: callback<any>): void;
+        getFundings(params: any): Promise<any>;
 
-        repay(params, callback: callback<any>);
-        repay(params): Promise<any>;
+        repay(params: any, callback: callback<any>): void;
+        repay(params: any): Promise<any>;
 
-        marginTransfer(params, callback: callback<any>);
-        marginTransfer(params): Promise<any>;
+        marginTransfer(params: any, callback: callback<any>): void;
+        marginTransfer(params: any): Promise<any>;
 
-        closePosition(params, callback: callback<any>);
-        closePosition(params): Promise<any>;
+        closePosition(params: any, callback: callback<any>): void;
+        closePosition(params: any): Promise<any>;
 
-        deposit(params, callback: callback<any>);
-        deposit(params): Promise<any>;
+        deposit(params: any, callback: callback<any>): void;
+        deposit(params: any): Promise<any>;
 
-        withdraw(params, callback: callback<any>);
-        withdraw(params): Promise<any>;
+        withdraw(params: any, callback: callback<any>): void;
+        withdraw(params: any): Promise<any>;
 
-        getTrailingVolume(callback: callback<any>);
+        withdrawCrypto(params: any, callback: callback<any>): void;
+        withdrawCrypto(params: any): Promise<any>;
+
+        getTrailingVolume(callback: callback<any>): void;
         getTrailingVolume(): Promise<any>;
     }
 
+
+    export interface WebsocketAuthentication {
+        key: string,
+        secret: string,
+        passphrase: string
+    }
+
+    interface WebsocketClientOptions {
+        channels?: string[];
+    }
+
     export class WebsocketClient {
-        constructor(productIds: string[]);
-        on(event: 'message', eventHandler: (data) => void);
-        on(event: 'error', eventHandler: (err) => void);
-        on(event: 'open', eventHandler: () => void);
-        on(event: 'close', eventHandler: () => void);
+        constructor(
+            productIds: string[],
+            websocketURI?: string,
+            auth?: WebsocketAuthentication,
+            { channels }?: WebsocketClientOptions );
+
+        on(event: 'message', eventHandler: (data:object) => void): void;
+        on(event: 'error', eventHandler: (err:any) => void): void;
+        on(event: 'open', eventHandler: () => void): void;
+        on(event: 'close', eventHandler: () => void): void;
+
+        connect(): void;
+        disconnect(): void;
     }
 }
